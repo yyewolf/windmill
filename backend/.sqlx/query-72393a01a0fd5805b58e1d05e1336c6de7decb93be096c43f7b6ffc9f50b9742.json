@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM usr_to_group WHERE workspace_id = $1 AND usr = $2 AND group_ = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "72393a01a0fd5805b58e1d05e1336c6de7decb93be096c43f7b6ffc9f50b9742"
+}
