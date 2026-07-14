@@ -28,5 +28,11 @@
     "token_url": "https://oauth.id.jumpcloud.com/oauth2/token",
     "userinfo_url": "https://oauth.id.jumpcloud.com/userinfo",
     "scopes": ["email"]
+  },
+  "infomaniak": {
+    "auth_url": "https://login.infomaniak.com/authorize",
+    "token_url": "https://login.infomaniak.com/token",
+    "userinfo_url": "https://login.infomaniak.com/oauth2/userinfo",
+    "scopes": ["openid", "profile", "email"]
   }
 }
