@@ -14646,6 +14646,7 @@ dependencies = [
 name = "windmill-git-sync"
 version = "1.757.0"
 dependencies = [
+ "globset",
  "regex",
  "serde",
  "serde_json",
