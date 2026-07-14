@@ -94,6 +94,8 @@ mod granular_acls;
 mod group_history;
 mod groups;
 mod health;
+#[cfg(all(feature = "oauth2", not(feature = "private")))]
+mod infomaniak_sso;
 #[cfg(feature = "private")]
 pub mod indexer_ee;
 mod indexer_oss;
