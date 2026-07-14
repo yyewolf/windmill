@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployment_metadata (workspace_id, path, script_hash, deployment_msg, callback_job_ids)\n                 VALUES ($1, $2, $3, $4, $5)\n                 ON CONFLICT (workspace_id, script_hash) WHERE script_hash IS NOT NULL\n                 DO UPDATE SET deployment_msg = EXCLUDED.deployment_msg, callback_job_ids = EXCLUDED.callback_job_ids",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Text",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "655bbd1d345f98cdf10ca9e883f02696fb04caec5bc2663d8751de575d6cb3cf"
+}
