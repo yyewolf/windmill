@@ -16563,6 +16563,7 @@ dependencies = [
 name = "windmill-git-sync"
 version = "1.875.0"
 dependencies = [
+ "globset",
  "regex",
  "serde",
  "serde_json",
