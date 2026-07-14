@@ -4,16 +4,14 @@
 	import ConfirmationModal from '$lib/components/common/confirmationModal/ConfirmationModal.svelte'
 	import { Button, Alert, Badge, Drawer, DrawerContent } from '$lib/components/common'
 	import GitSyncSetupModal from './GitSyncSetupModal.svelte'
-	import EEOnly from '$lib/components/EEOnly.svelte'
 	import Tooltip from '$lib/components/Tooltip.svelte'
 	import SettingsPageHeader from '$lib/components/settings/SettingsPageHeader.svelte'
 	import { setGitSyncContext } from './GitSyncContext.svelte'
 	import GitSyncRepositoryCard from './GitSyncRepositoryCard.svelte'
 	import type { GitSyncRepository } from './GitSyncContext.svelte'
 	import GitSyncModalManager from './GitSyncModalManager.svelte'
-	import { enterpriseLicense, workspaceStore, userWorkspaces } from '$lib/stores'
+	import { workspaceStore, userWorkspaces } from '$lib/stores'
 	import { base } from '$lib/base'
-	import { WorkspaceService } from '$lib/gen'
 	import { sendUserToast } from '$lib/toast'
 	import { apiErrorMessage } from '$lib/utils'
 	import { untrack } from 'svelte'
@@ -21,35 +19,6 @@
 	// Create context reactively based on workspaceStore
 	const gitSyncContext = $derived($workspaceStore ? setGitSyncContext($workspaceStore) : null)
 
-	// Fetch git sync eligibility
-	let gitSyncStatus = $state<{
-		enabled: boolean
-		reason: string | null
-		max_repos: number | null
-		user_count: number | null
-		max_users: number | null
-	}>({ enabled: false, reason: null, max_repos: null, user_count: null, max_users: null })
-
-	$effect(() => {
-		if ($workspaceStore) {
-			WorkspaceService.getGitSyncEnabled({ workspace: $workspaceStore })
-				.then((status) => {
-					gitSyncStatus = status as typeof gitSyncStatus
-				})
-				.catch(() => {
-					gitSyncStatus = {
-						enabled: false,
-						reason: null,
-						max_repos: null,
-						user_count: null,
-						max_users: null
-					}
-				})
-		}
-	})
-
-	const gitSyncAllowed = $derived(gitSyncStatus.enabled)
-	const isFreeTier = $derived(gitSyncAllowed && !$enterpriseLicense)
 	// Throwaway forks never run promotion mode: their deploys always go to the
 	// fork's own wm-fork/** branch, so a promotion repo could never take effect
 	// (the backend rejects it too). A dev workspace is the exception — it deploys
@@ -61,9 +30,6 @@
 	)
 	const isDevWorkspace = $derived(!!currentWorkspace?.is_dev_workspace)
 	const showPromotion = $derived(!isFork || isDevWorkspace)
-	const hasConfiguredRepos = $derived(
-		gitSyncContext?.repositories?.some((r) => r.git_repo_resource_path) ?? false
-	)
 
 	// Load settings when workspace context changes
 	$effect(() => {
@@ -185,7 +151,7 @@
 			return {
 				variant: 'primary-sync' as const,
 				mode: repo?.use_individual_branch ? ('promotion' as const) : ('sync' as const),
-				devPromotion: !!$enterpriseLicense
+				devPromotion: true
 			}
 		}
 		if (idx === primarySync?.idx) return { variant: 'primary-sync' as const, mode: 'sync' as const }
@@ -226,7 +192,7 @@
 		link="https://www.windmill.dev/docs/advanced/git_sync"
 	>
 		{#snippet actions()}
-			{#if (gitSyncAllowed || gitSyncStatus.user_count != null) && gitSyncContext?.repositories != undefined}
+			{#if gitSyncContext?.repositories != undefined}
 				<Button
 					variant={repositories.length > 0 ? 'accent' : 'default'}
 					target="_blank"
@@ -242,26 +208,7 @@
 		Only new changes matching the filters will trigger a git sync. You still need to initialize the
 		repo to the desired state first.
 	</Alert>
-	{#if !gitSyncAllowed}
-		<div class="mb-2"></div>
-
-		<Alert type={hasConfiguredRepos ? 'error' : 'warning'} title="Git sync disabled">
-			Git sync is an EE feature provided in CE for testing and hobbyist use when workspace members
-			&le; {gitSyncStatus.max_users}. Your workspace has {gitSyncStatus.user_count} members. Settings
-			below are preserved but sync is inactive until membership is reduced or you upgrade to EE.
-		</Alert>
-		<div class="mb-2"></div>
-	{:else if isFreeTier}
-		<div class="mb-2"></div>
-
-		<Alert type="warning" title="CE Limited Feature">
-			Git sync is an EE feature provided in CE for testing and hobbyist use when workspace members
-			&le; {gitSyncStatus.max_users}. Limited to a single repository. Upgrade to EE for multiple
-			repositories, promotion mode, and GitHub App authentication.
-		</Alert>
-		<div class="mb-2"></div>
-	{/if}
-	{#if (gitSyncAllowed || gitSyncStatus.user_count != null) && gitSyncContext?.repositories != undefined}
+	{#if gitSyncContext?.repositories != undefined}
 		<div class="pt-6">
 			{#if repositories.length === 0}
 				<div
@@ -304,12 +251,10 @@
 									unifiedSize="md"
 									variant="default"
 									startIcon={{ icon: Plus }}
-									disabled={!$enterpriseLicense}
 									onClick={() => openSetup('sync')}
 								>
 									{addSyncLabel}
 								</Button>
-								{#if !$enterpriseLicense}<EEOnly />{/if}
 							</div>
 						{/if}
 						{#if showAddPromotion}
@@ -318,7 +263,6 @@
 									unifiedSize="md"
 									variant="default"
 									startIcon={{ icon: Plus }}
-									disabled={!$enterpriseLicense}
 									onClick={() => openSetup('promotion')}
 								>
 									Add promotion repository
@@ -331,13 +275,12 @@
 									it on merge, so set up Git Sync there. Windmill can open the pull request for each
 									deploy branch, or you can use the open-pr-on-commit workflow.
 								</Tooltip>
-								{#if !$enterpriseLicense}<EEOnly />{/if}
 							</div>
 						{/if}
 					</div>
 				{/if}
 
-				{#if $enterpriseLicense && !showPromotion}
+				{#if !showPromotion}
 					<div class="mt-6">
 						<Alert
 							type="info"

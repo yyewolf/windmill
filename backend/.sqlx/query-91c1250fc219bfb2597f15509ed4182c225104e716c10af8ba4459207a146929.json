@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO usr_to_group (workspace_id, usr, group_) VALUES ($1, $2, 'all')\n         ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "91c1250fc219bfb2597f15509ed4182c225104e716c10af8ba4459207a146929"
+}

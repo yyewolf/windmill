@@ -14,7 +14,7 @@ pub use crate::oauth2_ee::*;
 use std::{collections::HashMap, fmt::Debug};
 
 #[cfg(not(feature = "private"))]
-use axum::{routing::get, Json, Router};
+use axum::{extract::Extension, routing::get, Json, Router};
 #[cfg(not(feature = "private"))]
 use hmac::Mac;
 
@@ -46,6 +46,7 @@ pub fn global_service() -> Router {
     Router::new()
         .route("/list_logins", get(list_logins))
         .route("/list_connects", get(list_connects))
+        .merge(crate::infomaniak_sso::global_service())
 }
 
 #[cfg(not(feature = "private"))]
@@ -103,15 +104,27 @@ pub struct TokenResponse {
 
 #[cfg(not(feature = "private"))]
 #[derive(Serialize)]
+struct Login {
+    r#type: String,
+    display_name: String,
+}
+
+#[cfg(not(feature = "private"))]
+#[derive(Serialize)]
 struct Logins {
-    oauth: Vec<String>,
+    oauth: Vec<Login>,
     saml: Option<String>,
     auto_login: Option<String>,
 }
+
 #[cfg(not(feature = "private"))]
-async fn list_logins() -> error::JsonResult<Logins> {
-    // Implementation is not open source
-    return Ok(Json(Logins { oauth: vec![], saml: None, auto_login: None }));
+async fn list_logins(Extension(db): Extension<DB>) -> error::JsonResult<Logins> {
+    let oauth = crate::infomaniak_sso::infomaniak_login_settings(&db)
+        .await
+        .map(|(r#type, display_name)| Login { r#type, display_name })
+        .into_iter()
+        .collect();
+    return Ok(Json(Logins { oauth, saml: None, auto_login: None }));
 }
 
 #[allow(unused)]
@@ -147,27 +160,9 @@ pub async fn _refresh_token<'c>(
 }
 
 #[cfg(not(feature = "private"))]
-pub async fn check_nb_of_user(db: &DB) -> error::Result<()> {
-    let nb_users_sso =
-        sqlx::query_scalar!("SELECT COUNT(*) FROM password WHERE login_type != 'password'",)
-            .fetch_one(db)
-            .await?;
-    if nb_users_sso.unwrap_or(0) >= 10 {
-        return Err(error::Error::BadRequest(
-            "You have reached the maximum number of oauth users accounts (10) without an enterprise license"
-                .to_string(),
-        ));
-    }
-
-    let nb_users = sqlx::query_scalar!("SELECT COUNT(*) FROM password",)
-        .fetch_one(db)
-        .await?;
-    if nb_users.unwrap_or(0) >= 50 {
-        return Err(error::Error::BadRequest(
-            "You have reached the maximum number of accounts (50) without an enterprise license"
-                .to_string(),
-        ));
-    }
+pub async fn check_nb_of_user(_db: &DB) -> error::Result<()> {
+    // This fork removes the account caps upstream applies without an enterprise license
+    // (10 SSO accounts, 50 accounts in total). Kept as a no-op so callers stay unchanged.
     return Ok(());
 }
 
