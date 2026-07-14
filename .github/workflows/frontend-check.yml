@@ -1,10 +1,5 @@
 name: check frontend build
 on:
-  workflow_run:
-    workflows: ["Change versions"]
-    types:
-      - completed
-
   merge_group:
   push:
     paths:
@@ -13,7 +8,7 @@ on:
 
 jobs:
   npm_check:
-    runs-on: ubicloud-standard-8
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v5

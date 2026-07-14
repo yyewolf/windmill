@@ -1,0 +1,93 @@
+name: Build fork image on tag
+
+on:
+  push:
+    tags: ["*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish the image under"
+        required: true
+        default: "test"
+
+concurrency:
+  group: fork-image-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # Upstream's `ce` preset implies the `private` feature, whose sources live in the
+  # closed windmill-ee-private repo. This build never has that repo, so it selects the
+  # open-source features directly. `no_auth` (part of the `oss` preset) is deliberately
+  # absent: it hardcodes every request to an admin identity.
+  FEATURES: oss_core,all_languages,jemalloc,dind
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The Dockerfile COPYs .git/ into the build context to stamp the build.
+          fetch-depth: 0
+
+      # windmill-common asserts at compile time that the minor version parsed out of
+      # `git describe` is at least 50 ahead of MIN_KEEP_ALIVE_VERSION (1.420.0), so the
+      # second dot-separated field of the tag must be a number >= 470. A tag like
+      # `1.0.0-1.757.0` yields minor=0 and fails deep in the Rust build with an opaque
+      # const-eval overflow; catch it here instead.
+      - name: Validate tag shape
+        run: |
+          version=$(git describe --tag --always)
+          minor=$(echo "$version" | cut -d. -f2)
+          if ! [[ "$minor" =~ ^[0-9]+$ ]] || [ "$minor" -lt 470 ]; then
+            echo "::error::git describe returned '$version', whose minor field ('$minor') must be a number >= 470."
+            echo "::error::Tag as MAJOR.MINOR.PATCH tracking upstream, e.g. v1.757.0 or v1.757.0-fork.1."
+            exit 1
+          fi
+          echo "Building version $version"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          df -h /
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            features=${{ env.FEATURES }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
