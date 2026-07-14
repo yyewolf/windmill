@@ -3342,9 +3342,6 @@ fn cleanup_legacy_git_sync_settings_in_memory(
     }
 }
 
-#[cfg(not(feature = "enterprise"))]
-const CE_GIT_SYNC_MAX_USERS: i64 = 2;
-
 /// Auto-pull is licensed per plan, not just per build: the poller only serves
 /// Enterprise plans at runtime, so the save path must reject the setting too —
 /// otherwise an EE binary without the plan could still register a webhook and
@@ -3508,44 +3505,12 @@ async fn check_dev_promotion_targets_parent_repo<'a>(
     Ok(())
 }
 
-#[cfg(feature = "enterprise")]
+// This fork removes the 2-member cap and the single-repository limit upstream applies to git sync
+// without an enterprise license.
 async fn check_git_sync_access(_db: &DB, _w_id: &str) -> Result<()> {
     Ok(())
 }
 
-// Anchor the CE-only query for `cargo sqlx prepare` (which runs with --features enterprise)
-#[cfg(feature = "enterprise")]
-#[allow(dead_code)]
-async fn _sqlx_anchor_ce_user_count(db: &DB, w_id: &str) {
-    let _ = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM usr WHERE workspace_id = $1 AND disabled = false",
-        w_id
-    )
-    .fetch_one(db)
-    .await;
-}
-
-#[cfg(not(feature = "enterprise"))]
-async fn check_git_sync_access(db: &DB, w_id: &str) -> Result<()> {
-    let user_count: i64 = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM usr WHERE workspace_id = $1 AND disabled = false",
-        w_id
-    )
-    .fetch_one(db)
-    .await?
-    .unwrap_or(0);
-
-    if user_count > CE_GIT_SYNC_MAX_USERS {
-        return Err(Error::BadRequest(format!(
-            "Git sync is available for workspaces with up to {} members. \
-             Upgrade to Windmill Enterprise Edition for unlimited workspace members.",
-            CE_GIT_SYNC_MAX_USERS
-        )));
-    }
-    Ok(())
-}
-
-#[cfg(feature = "enterprise")]
 async fn get_git_sync_enabled(
     _authed: ApiAuthed,
     Extension(_db): Extension<DB>,
@@ -3557,30 +3522,6 @@ async fn get_git_sync_enabled(
         "max_repos": null,
         "user_count": null,
         "max_users": null,
-    })))
-}
-
-#[cfg(not(feature = "enterprise"))]
-async fn get_git_sync_enabled(
-    _authed: ApiAuthed,
-    Extension(db): Extension<DB>,
-    Path(w_id): Path<String>,
-) -> JsonResult<serde_json::Value> {
-    let user_count: i64 = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM usr WHERE workspace_id = $1 AND disabled = false",
-        &w_id
-    )
-    .fetch_one(&db)
-    .await?
-    .unwrap_or(0);
-
-    let enabled = user_count <= CE_GIT_SYNC_MAX_USERS;
-    Ok(Json(serde_json::json!({
-        "enabled": enabled,
-        "reason": if enabled { Some("free_tier") } else { None::<&str> },
-        "max_repos": if enabled { Some(1) } else { None::<i32> },
-        "user_count": user_count,
-        "max_users": CE_GIT_SYNC_MAX_USERS,
     })))
 }
 
@@ -5218,33 +5159,13 @@ async fn create_workspace_require_superadmin() -> String {
     format!("{}", *CREATE_WORKSPACE_REQUIRE_SUPERADMIN)
 }
 
-async fn _check_nb_of_workspaces(db: &DB) -> Result<()> {
-    let nb_workspaces = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM workspace WHERE id != 'admins' AND deleted = false",
-    )
-    .fetch_one(db)
-    .await?;
-    if nb_workspaces.unwrap_or(0) >= 2 {
-        return Err(Error::BadRequest(
-            "You have reached the maximum number of workspaces (2 outside of default workspace 'admins') without an enterprise license. Archive/delete another workspace to create a new one"
-                .to_string(),
-        ));
-    }
+// This fork removes the workspace caps upstream applies without an enterprise license
+// (2 active workspaces, 1 archived one). Kept as no-ops so callers stay unchanged.
+async fn _check_nb_of_workspaces(_db: &DB) -> Result<()> {
     return Ok(());
 }
 
-async fn _check_nb_of_archived_workspaces(db: &DB) -> Result<()> {
-    let nb_archived = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM workspace WHERE id != 'admins' AND deleted = true",
-    )
-    .fetch_one(db)
-    .await?;
-    if nb_archived.unwrap_or(0) >= 1 {
-        return Err(Error::BadRequest(
-            "You have reached the maximum number of archived workspaces (1) without an enterprise license. Permanently delete or unarchive the existing archived workspace first"
-                .to_string(),
-        ));
-    }
+async fn _check_nb_of_archived_workspaces(_db: &DB) -> Result<()> {
     return Ok(());
 }
 

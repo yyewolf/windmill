@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT super_admin, disabled FROM password WHERE email = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "super_admin",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "disabled",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d09706517cbc4763bcd4010a3de2c868e9ad2361ff56bb64a1ff12dab8c124b1"
+}
