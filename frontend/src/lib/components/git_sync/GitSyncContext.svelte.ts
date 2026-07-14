@@ -1,7 +1,6 @@
 import { getContext, setContext } from 'svelte'
-import { enterpriseLicense, userStore, userWorkspaces, workspaceStore } from '$lib/stores'
+import { userStore, userWorkspaces, workspaceStore } from '$lib/stores'
 import { get } from 'svelte/store'
-import { sendUserToast } from '$lib/toast'
 import { apiErrorMessage } from '$lib/utils'
 import { JobService, WorkspaceService, ResourceService } from '$lib/gen'
 import type {
@@ -745,10 +744,6 @@ export function createGitSyncContext(workspace: string) {
 	}
 
 	function addSyncRepository() {
-		if (!get(enterpriseLicense) && repositories && repositories.length >= 1) {
-			sendUserToast('Multiple repositories requires Enterprise Edition', true)
-			return
-		}
 		repositories.push({
 			git_repo_resource_path: '',
 			script_path: undefined,
@@ -788,10 +783,6 @@ export function createGitSyncContext(workspace: string) {
 	}
 
 	function addPromotionRepository() {
-		if (!get(enterpriseLicense)) {
-			sendUserToast('Promotion mode requires Enterprise Edition', true)
-			return
-		}
 		repositories.push({
 			git_repo_resource_path: '',
 			script_path: undefined,
