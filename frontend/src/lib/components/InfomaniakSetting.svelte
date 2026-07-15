@@ -21,6 +21,16 @@
 
 	let teamSync = $derived(value?.['team_sync'])
 	let mappings: TeamMapping[] = $derived(teamSync?.['mappings'] ?? [])
+	let scopes: string[] = $derived(value?.['scopes'] ?? [])
+
+	function updateScopes(next: string[]) {
+		if (next.length === 0) {
+			const { scopes, ...rest } = value
+			value = rest
+		} else {
+			value = { ...value, scopes: next }
+		}
+	}
 
 	function setTeamSyncEnabled(enabled: boolean) {
 		if (!value) return
@@ -44,6 +54,47 @@
 	<OAuthSetting name="infomaniak" bind:value />
 	{#if value}
 		<SettingCard class="mb-4 flex flex-col gap-6">
+			<div class="flex flex-col gap-2">
+				<span class="text-emphasis font-semibold text-xs">OAuth scopes</span>
+				<span class="text-secondary font-normal text-xs">
+					Scopes requested during the login flow. Leave empty to use the defaults (<code
+						>openid</code
+					>, <code>profile</code>, <code>email</code>). Team sync additionally requires the
+					<code>user_info</code>
+					and <code>accounts</code> scopes, which are not granted by default and have to be requested
+					from Infomaniak's support.
+				</span>
+				{#if scopes.length > 0}
+					<div class="flex flex-col gap-2">
+						{#each scopes as _, idx (idx)}
+							<div class="flex gap-2 items-center">
+								<TextInput
+									inputProps={{ type: 'text', placeholder: 'openid' }}
+									bind:value={value['scopes'][idx]}
+								/>
+								<Button
+									variant="subtle"
+									destructive
+									iconOnly
+									unifiedSize="sm"
+									startIcon={{ icon: X }}
+									onclick={() => updateScopes(scopes.filter((_, i) => i !== idx))}
+								/>
+							</div>
+						{/each}
+					</div>
+				{/if}
+				<div class="flex">
+					<Button
+						variant="default"
+						unifiedSize="md"
+						startIcon={{ icon: Plus }}
+						onclick={() => updateScopes([...scopes, ''])}
+					>
+						Add scope
+					</Button>
+				</div>
+			</div>
 			<!-- svelte-ignore a11y_label_has_associated_control -->
 			<label class="flex gap-4 items-center text-xs font-semibold text-emphasis">
 				<div class="w-[120px]">Team sync</div>
@@ -58,6 +109,11 @@
 					Infomaniak teams, and removed from the mapped groups of the teams they left. Groups that
 					are not the target of a mapping are never touched. A user mapped into a workspace they are
 					not a member of yet is added to it as a regular member.
+				</span>
+				<span class="text-secondary font-normal text-xs">
+					Team sync needs the OAuth flow to include the <code>user_info</code> and
+					<code>accounts</code> scopes — add them to the scopes above. These scopes are not
+					granted by default and have to be requested from Infomaniak's support.
 				</span>
 				<label class="flex flex-col gap-1">
 					<span class="text-emphasis font-semibold text-xs">Infomaniak account id</span>
