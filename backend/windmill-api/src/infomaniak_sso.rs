@@ -91,6 +91,12 @@ struct InfomaniakSettings {
     display_name: Option<String>,
     #[serde(default)]
     allowed_domains: Option<Vec<String>>,
+    /// OAuth scopes requested at authorize time. When unset or empty the
+    /// defaults from `oauth_login.json` are used. Team sync additionally needs
+    /// the `user_info` and `accounts` scopes, which Infomaniak only grants on
+    /// request through their support.
+    #[serde(default)]
+    scopes: Option<Vec<String>>,
     #[serde(default)]
     team_sync: Option<TeamSync>,
 }
@@ -205,7 +211,14 @@ async fn login(
     let config = registry_config()?;
     let mut client = build_client(&settings, &config)?;
 
-    for scope in config.scopes.iter().flatten() {
+    // Instance-configured scopes take precedence over the defaults baked into
+    // oauth_login.json; an empty list falls back to those defaults.
+    let default_scopes = config.scopes.clone().unwrap_or_default();
+    let scopes = match settings.scopes.as_deref() {
+        Some(s) if !s.is_empty() => s,
+        _ => &default_scopes,
+    };
+    for scope in scopes.iter().map(|s| s.trim()).filter(|s| !s.is_empty()) {
         client.add_scope(scope);
     }
 
