@@ -309,6 +309,7 @@ async fn push_sync_jobs(
             None,
             None,
             None,
+            None,
         )
         .await?;
         tx.commit().await?;
