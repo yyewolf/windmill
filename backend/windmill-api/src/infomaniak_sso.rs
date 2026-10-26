@@ -177,6 +177,7 @@ fn build_client(
             login_config: None,
             tenant: None,
             grant_types: vec!["authorization_code".to_string()],
+            signing_secret: None,
         },
         true,
         &base_url,
