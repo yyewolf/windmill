@@ -179,6 +179,7 @@ fn build_client(
             grant_types: vec!["authorization_code".to_string()],
             signing_secret: None,
             pkce: None,
+            share_client_credentials: None,
         },
         true,
         &base_url,
